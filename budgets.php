@@ -18,6 +18,30 @@ $success_message = "";
 // Check if there's a suggestion from transaction page
 $suggested_category = isset($_GET['suggest']) ? $_GET['suggest'] : '';
 
+// Fetch all unique expense categories for dropdown
+$all_expense_categories = [];
+$sql = "SELECT DISTINCT category FROM expenses WHERE user_id = ? ORDER BY category";
+
+if($stmt = mysqli_prepare($conn, $sql)){
+    mysqli_stmt_bind_param($stmt, "i", $_SESSION["id"]);
+    if(mysqli_stmt_execute($stmt)){
+        $result = mysqli_stmt_get_result($stmt);
+        while($row = mysqli_fetch_assoc($result)){
+            $all_expense_categories[] = $row['category'];
+        }
+    }
+    mysqli_stmt_close($stmt);
+}
+
+// Add common categories if they don't exist in user's expenses
+$common_categories = ["Housing", "Transportation", "Food", "Utilities", "Insurance", "Healthcare", "Debt", "Personal", "Entertainment", "Clothing", "Education", "Gifts", "Savings", "Groceries", "Dining", "Other"];
+foreach($common_categories as $cat) {
+    if(!in_array($cat, $all_expense_categories)) {
+        $all_expense_categories[] = $cat;
+    }
+}
+sort($all_expense_categories);
+
 if($_SERVER["REQUEST_METHOD"] == "POST"){
     
     // Check if we're editing an existing budget
@@ -27,7 +51,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     
     // Validate category
     if(empty(trim($_POST["category"]))){
-        $budget_err = "Please enter a category name.";
+        $budget_err = "Please select a category.";
     } else{
         $category = trim($_POST["category"]);
     }
@@ -626,6 +650,26 @@ function formatIDR($number) {
             font-size: 0.95rem;
         }
         
+        .form-control.select-with-add {
+            padding-right: 40px;
+        }
+        
+        .select-container {
+            position: relative;
+        }
+        
+        .add-new-category {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+        
         .icon-selector {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
@@ -770,6 +814,12 @@ function formatIDR($number) {
         .suggestion-action {
             margin-left: 1rem;
         }
+        
+        /* Custom input for adding a new category */
+        .custom-category-container {
+            display: none;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -795,7 +845,7 @@ function formatIDR($number) {
             </div>
             
             <nav class="sidebar-nav">
-                <a href="index.php" class="nav-item active">
+                <a href="index.php" class="nav-item">
                     <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
@@ -815,7 +865,7 @@ function formatIDR($number) {
                     <span>Transactions</span>
                 </a>
                 
-                <a href="budgets.php" class="nav-item">
+                <a href="budgets.php" class="nav-item active">
                     <i class="fas fa-chart-pie"></i>
                     <span>Budgets & Goals</span>
                 </a>
@@ -1003,7 +1053,21 @@ function formatIDR($number) {
                 
                 <div class="form-group">
                     <label>Category</label>
-                    <input type="text" name="category" class="form-control" value="<?php echo empty($category) && !empty($suggested_category) ? $suggested_category : $category; ?>" required>
+                    <div class="select-container">
+                        <select name="category" id="categorySelect" class="form-control select-with-add" required>
+                            <option value="">Select a category</option>
+                            <?php foreach($all_expense_categories as $cat): ?>
+                                <option value="<?php echo htmlspecialchars($cat); ?>" 
+                                    <?php echo ($category == $cat || $suggested_category == $cat) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($cat); ?>
+                                </option>
+                            <?php endforeach; ?>
+                            <!-- <option value="custom">+ Add New Category</option> -->
+                        </select>
+                    </div>
+                    <div id="customCategoryContainer" class="custom-category-container">
+                        <input type="text" id="customCategory" class="form-control" placeholder="Enter custom category">
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -1061,6 +1125,42 @@ function formatIDR($number) {
             const cancelBtn = document.getElementById('cancelBtn');
             const iconOptions = document.querySelectorAll('.icon-option');
             const selectedIconInput = document.getElementById('selectedIcon');
+            const categorySelect = document.getElementById('categorySelect');
+            const customCategoryContainer = document.getElementById('customCategoryContainer');
+            const customCategoryInput = document.getElementById('customCategory');
+            
+            // Handle custom category selection
+            if(categorySelect) {
+                categorySelect.addEventListener('change', function() {
+                    if(this.value === 'custom') {
+                        customCategoryContainer.style.display = 'block';
+                        customCategoryInput.setAttribute('required', 'required');
+                    } else {
+                        customCategoryContainer.style.display = 'none';
+                        customCategoryInput.removeAttribute('required');
+                    }
+                });
+            }
+            
+            // Handle form submission with custom category
+            if(document.querySelector('form')) {
+                document.querySelector('form').addEventListener('submit', function(e) {
+                    if(categorySelect.value === 'custom' && customCategoryInput.value.trim() === '') {
+                        e.preventDefault();
+                        alert('Please enter a custom category name');
+                        return false;
+                    }
+                    
+                    if(categorySelect.value === 'custom') {
+                        // Create a hidden input with the custom category value
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'category';
+                        hiddenInput.value = customCategoryInput.value.trim();
+                        this.appendChild(hiddenInput);
+                    }
+                });
+            }
             
             // Open modal
             if(openModalBtn) {
@@ -1105,14 +1205,41 @@ function formatIDR($number) {
         
         // Function to suggest budget
         function suggestBudget(category) {
-            // Set category in modal and open it
+            // Set category in select and open modal
             const modal = document.getElementById('budgetModal');
-            const categoryInput = document.querySelector('input[name="category"]');
-            if(categoryInput) {
-                categoryInput.value = category;
+            const categorySelect = document.getElementById('categorySelect');
+            
+            if(categorySelect) {
+                // Try to find and select the matching option
+                let found = false;
+                for(let i = 0; i < categorySelect.options.length; i++) {
+                    if(categorySelect.options[i].value === category) {
+                        categorySelect.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                
+                // If not found, use the custom option
+                if(!found && category) {
+                    const customOption = Array.from(categorySelect.options).find(opt => opt.value === 'custom');
+                    if(customOption) {
+                        customOption.selected = true;
+                        
+                        // Show custom input and set value
+                        const customCategoryContainer = document.getElementById('customCategoryContainer');
+                        const customCategoryInput = document.getElementById('customCategory');
+                        if(customCategoryContainer && customCategoryInput) {
+                            customCategoryContainer.style.display = 'block';
+                            customCategoryInput.value = category;
+                        }
+                    }
+                }
             }
             
-            modal.classList.add('active');
+            if(modal) {
+                modal.classList.add('active');
+            }
         }
         
         <?php if(!empty($suggested_category)): ?>

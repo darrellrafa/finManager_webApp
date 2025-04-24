@@ -528,7 +528,7 @@ function formatIDR($amount) {
             </div>
             
             <nav class="sidebar-nav">
-                <a href="index.php" class="nav-item active">
+                <a href="index.php" class="nav-item">
                     <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
@@ -543,7 +543,7 @@ function formatIDR($amount) {
                     <span>Wallets</span>
                 </a>
                 
-                <a href="transactions.php" class="nav-item">
+                <a href="transactions.php" class="nav-item active">
                     <i class="fas fa-exchange-alt"></i>
                     <span>Transactions</span>
                 </a>

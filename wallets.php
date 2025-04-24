@@ -721,7 +721,7 @@ function formatIDR($number) {
             </div>
             
             <nav class="sidebar-nav">
-                <a href="index.php" class="nav-item active">
+                <a href="index.php" class="nav-item">
                     <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
@@ -731,7 +731,7 @@ function formatIDR($number) {
                     <span>Pinned</span>
                 </a> -->
                 
-                <a href="wallets.php" class="nav-item">
+                <a href="wallets.php" class="nav-item active">
                     <i class="fas fa-wallet"></i>
                     <span>Wallets</span>
                 </a>
