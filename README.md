@@ -61,3 +61,6 @@ Expense Optimization: Identifies potential areas to reduce spending
 Financial Organization: Keeps all financial information in one accessible place
 
 Finance Manager aims to simplify personal finance management, helping users make informed decisions about their money and develop healthier financial habits over time.
+
+
+<img width="1280" alt="Screen Shot 2025-04-25 at 09 56 12" src="https://github.com/user-attachments/assets/453c632a-5f7c-41fb-8cac-a5fbfc237a56" />
